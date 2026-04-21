@@ -19,12 +19,9 @@ export default function AuthScreen({ onAuth }: AuthScreenProps) {
     setError("");
     setLoading(true);
     try {
-      let result;
-      if (mode === "register") {
-        result = await authRegister(name, username, password);
-      } else {
-        result = await authLogin(username, password);
-      }
+      const result = mode === "register"
+        ? await authRegister(name, username, password)
+        : await authLogin(username, password);
       onAuth(result.user);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Ошибка");
@@ -33,121 +30,116 @@ export default function AuthScreen({ onAuth }: AuthScreenProps) {
     }
   };
 
-  return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center px-4"
-      style={{ background: "hsl(var(--background))" }}
-    >
-      {/* Logo */}
-      <div className="mb-10 text-center animate-fade-in">
-        <span
-          className="text-4xl font-semibold font-mono-plex tracking-tight"
-          style={{ color: "hsl(var(--primary))" }}
-        >
-          void
-        </span>
-        <p className="text-xs text-muted-foreground mt-2 tracking-widest uppercase font-mono-plex">
-          социальная сеть
-        </p>
-      </div>
+  const inputClass = "w-full bg-secondary border border-border rounded-xl px-4 py-3 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/60 transition-colors";
 
-      {/* Card */}
-      <div
-        className="w-full max-w-sm animate-slide-up"
-        style={{ animationDelay: "80ms" }}
-      >
-        {/* Tabs */}
-        <div className="flex mb-6 border-b border-border">
-          {(["login", "register"] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => { setMode(m); setError(""); }}
-              className="flex-1 pb-3 text-sm font-medium transition-all relative"
-              style={{
-                color: mode === m ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
-              }}
-            >
-              {m === "login" ? "Войти" : "Регистрация"}
-              {mode === m && (
-                <span
-                  className="absolute bottom-0 left-0 right-0 h-px"
-                  style={{ background: "hsl(var(--primary))" }}
-                />
-              )}
-            </button>
+  return (
+    <div className="min-h-screen flex" style={{ background: "hsl(var(--background))" }}>
+      {/* Левая декоративная панель (только десктоп) */}
+      <div className="hidden lg:flex flex-1 flex-col items-center justify-center p-12 relative overflow-hidden"
+        style={{ background: "hsl(var(--card))", borderRight: "1px solid hsl(var(--border))" }}>
+        <div className="absolute inset-0 opacity-5"
+          style={{ backgroundImage: "radial-gradient(circle at 30% 50%, hsl(var(--primary)) 0%, transparent 60%)" }} />
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6"
+          style={{ background: "hsl(var(--primary))" }}>
+          <Icon name="Zap" size={30} color="white" />
+        </div>
+        <h1 className="text-3xl font-bold mb-3 text-center">{document.title.split("–")[0].trim()}</h1>
+        <p className="text-muted-foreground text-center max-w-xs text-sm leading-relaxed">
+          Общайтесь, делитесь мыслями и находите интересных людей
+        </p>
+        <div className="mt-10 flex flex-col gap-3 w-full max-w-xs">
+          {["Лента постов", "Личные сообщения", "Подписки и профили"].map((f) => (
+            <div key={f} className="flex items-center gap-3 text-sm text-muted-foreground">
+              <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "hsla(214,89%,60%,0.15)" }}>
+                <Icon name="Check" size={12} color="hsl(var(--primary))" />
+              </div>
+              {f}
+            </div>
           ))}
         </div>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          {mode === "register" && (
-            <div>
-              <label className="text-xs text-muted-foreground mb-1.5 block font-mono-plex">
-                Имя
-              </label>
-              <input
-                className="w-full bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/50 transition-colors"
-                placeholder="Алекс Орлов"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoComplete="name"
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="text-xs text-muted-foreground mb-1.5 block font-mono-plex">
-              Логин
-            </label>
-            <input
-              className="w-full bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/50 transition-colors font-mono-plex"
-              placeholder="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ""))}
-              autoComplete="username"
-              autoCapitalize="none"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs text-muted-foreground mb-1.5 block font-mono-plex">
-              Пароль
-            </label>
-            <input
-              type="password"
-              className="w-full bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/50 transition-colors"
-              placeholder={mode === "register" ? "минимум 6 символов" : "••••••••"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={mode === "register" ? "new-password" : "current-password"}
-            />
-          </div>
-
-          {error && (
-            <p className="text-xs py-2 px-3 rounded-lg"
-              style={{ background: "hsla(0, 62%, 50%, 0.1)", color: "hsl(0, 62%, 65%)" }}>
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-2 w-full py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            style={{
-              background: "hsl(var(--primary))",
-              color: "hsl(var(--primary-foreground))",
-            }}
-          >
-            {loading ? (
-              <Icon name="Loader2" size={16} className="animate-spin" />
-            ) : mode === "login" ? "Войти" : "Создать аккаунт"}
-          </button>
-        </form>
       </div>
 
-      <p className="mt-8 text-xs text-muted-foreground animate-fade-in" style={{ animationDelay: "200ms" }}>
-        void · {new Date().getFullYear()}
-      </p>
+      {/* Правая форма */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+        {/* Мобильное лого */}
+        <div className="lg:hidden flex flex-col items-center mb-10 animate-fade-in">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
+            style={{ background: "hsl(var(--primary))" }}>
+            <Icon name="Zap" size={26} color="white" />
+          </div>
+          <h1 className="text-2xl font-bold">{document.title.split("–")[0].trim()}</h1>
+        </div>
+
+        <div className="w-full max-w-sm animate-slide-up">
+          <h2 className="text-xl font-bold mb-1">
+            {mode === "login" ? "Добро пожаловать!" : "Создать аккаунт"}
+          </h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            {mode === "login" ? "Войдите в свой аккаунт" : "Заполните данные для регистрации"}
+          </p>
+
+          {/* Переключатель */}
+          <div className="flex p-1 rounded-xl mb-6" style={{ background: "hsl(var(--secondary))" }}>
+            {(["login", "register"] as const).map((m) => (
+              <button key={m} onClick={() => { setMode(m); setError(""); }}
+                className="flex-1 py-2 rounded-lg text-sm font-medium transition-all"
+                style={{
+                  background: mode === m ? "hsl(var(--card))" : "transparent",
+                  color: mode === m ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
+                  boxShadow: mode === m ? "0 1px 4px rgba(0,0,0,0.2)" : "none",
+                }}>
+                {m === "login" ? "Войти" : "Регистрация"}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+            {mode === "register" && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Имя и фамилия</label>
+                <input className={inputClass} placeholder="Иван Петров"
+                  value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
+              </div>
+            )}
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Логин</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
+                <input className={`${inputClass} pl-8`} placeholder="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ""))}
+                  autoComplete="username" autoCapitalize="none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Пароль</label>
+              <input type="password" className={inputClass}
+                placeholder={mode === "register" ? "минимум 6 символов" : "••••••••"}
+                value={password} onChange={(e) => setPassword(e.target.value)}
+                autoComplete={mode === "register" ? "new-password" : "current-password"} />
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm"
+                style={{ background: "hsla(0,72%,58%,0.12)", color: "hsl(0,72%,68%)" }}>
+                <Icon name="AlertCircle" size={14} />
+                {error}
+              </div>
+            )}
+
+            <button type="submit" disabled={loading}
+              className="mt-1 w-full py-3 rounded-xl text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ background: "hsl(var(--primary))", color: "hsl(var(--primary-foreground))" }}>
+              {loading
+                ? <Icon name="Loader2" size={16} className="animate-spin" />
+                : mode === "login" ? "Войти" : "Создать аккаунт"}
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }

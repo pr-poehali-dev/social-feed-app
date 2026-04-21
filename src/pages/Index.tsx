@@ -5,6 +5,7 @@ import Messages from "@/components/Messages";
 import Discover from "@/components/Discover";
 import AuthScreen from "@/components/AuthScreen";
 import Icon from "@/components/ui/icon";
+import Avatar from "@/components/Avatar";
 import { authMe, authLogout, AuthUser } from "@/lib/api";
 
 type Tab = "feed" | "discover" | "messages" | "profile";
@@ -39,12 +40,21 @@ export default function Index() {
     setTab("messages");
   };
 
+  const switchTab = (key: Tab) => {
+    if (key === "profile") setProfileId(null);
+    if (key !== "messages") setMessageUserId(null);
+    setTab(key);
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "hsl(var(--background))" }}>
-        <span className="text-2xl font-semibold font-mono-plex" style={{ color: "hsl(var(--primary))" }}>
-          void
-        </span>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "hsl(var(--primary))" }}>
+            <Icon name="Zap" size={20} color="white" />
+          </div>
+          <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
       </div>
     );
   }
@@ -54,42 +64,79 @@ export default function Index() {
   }
 
   const navItems: { key: Tab; icon: string; label: string }[] = [
-    { key: "feed", icon: "Home", label: "Лента" },
-    { key: "discover", icon: "Compass", label: "Люди" },
-    { key: "messages", icon: "MessageCircle", label: "Сообщения" },
-    { key: "profile", icon: "User", label: "Профиль" },
+    { key: "feed",      icon: "Home",          label: "Лента" },
+    { key: "discover",  icon: "Compass",       label: "Люди" },
+    { key: "messages",  icon: "MessageCircle", label: "Сообщения" },
+    { key: "profile",   icon: "User",          label: "Профиль" },
   ];
 
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{ background: "hsl(var(--background))" }}
-    >
-      {/* Top bar */}
-      <header
-        className="fixed top-0 left-0 right-0 z-20 border-b border-border backdrop-blur-sm"
-        style={{ background: "hsla(0, 0%, 5%, 0.85)" }}
-      >
-        <div className="max-w-lg mx-auto px-4 h-12 flex items-center justify-between">
-          <span
-            className="text-base font-semibold font-mono-plex tracking-tight"
-            style={{ color: "hsl(var(--primary))" }}
-          >
-            void
-          </span>
-          <button
-            onClick={handleLogout}
-            className="text-muted-foreground hover:text-foreground transition-colors text-xs flex items-center gap-1.5"
-          >
-            <Icon name="LogOut" size={14} />
-            <span className="font-mono-plex">выйти</span>
+    <div className="min-h-screen flex" style={{ background: "hsl(var(--background))" }}>
+
+      {/* ── Боковая навигация (десктоп / планшет) ── */}
+      <aside className="hidden sm:flex flex-col fixed left-0 top-0 h-full w-16 lg:w-60 z-30 border-r border-border py-4 px-2 lg:px-4 justify-between"
+        style={{ background: "hsl(var(--card))" }}>
+        <div className="flex flex-col gap-1">
+          {/* Лого */}
+          <div className="flex items-center gap-3 px-2 py-3 mb-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: "hsl(var(--primary))" }}>
+              <Icon name="Zap" size={16} color="white" />
+            </div>
+            <span className="hidden lg:block text-base font-bold tracking-tight" style={{ color: "hsl(var(--foreground))" }}>
+              {(document.title || "Void").split(" ")[0]}
+            </span>
+          </div>
+
+          {navItems.map(({ key, icon, label }) => {
+            const isActive = tab === key;
+            return (
+              <button key={key} onClick={() => switchTab(key)}
+                className="flex items-center gap-3 px-2 py-2.5 rounded-xl transition-all font-medium text-sm"
+                style={{
+                  background: isActive ? "hsla(214,89%,60%,0.12)" : "transparent",
+                  color: isActive ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+                }}>
+                <Icon name={icon} size={20} />
+                <span className="hidden lg:block">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Профиль внизу боковой панели */}
+        <div className="flex items-center gap-3 px-2 py-2 rounded-xl cursor-pointer hover:bg-secondary transition-all"
+          onClick={() => switchTab("profile")}>
+          <Avatar initials={user.avatar} size="sm" accent />
+          <div className="hidden lg:block min-w-0">
+            <p className="text-sm font-semibold truncate leading-tight">{user.name}</p>
+            <p className="text-xs text-muted-foreground truncate">@{user.username}</p>
+          </div>
+          <button onClick={(e) => { e.stopPropagation(); handleLogout(); }}
+            className="hidden lg:flex ml-auto text-muted-foreground hover:text-foreground transition-colors">
+            <Icon name="LogOut" size={15} />
           </button>
         </div>
-      </header>
+      </aside>
 
-      {/* Content */}
-      <main className="flex-1 max-w-lg mx-auto w-full pt-12 pb-14">
-        <div className="min-h-[calc(100vh-104px)]">
+      {/* ── Основной контент ── */}
+      <main className="flex-1 sm:ml-16 lg:ml-60 flex flex-col min-h-screen">
+
+        {/* Мобильный хедер */}
+        <header className="sm:hidden sticky top-0 z-20 border-b border-border backdrop-blur-md px-4 h-14 flex items-center justify-between"
+          style={{ background: "hsla(216,18%,13%,0.9)" }}>
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: "hsl(var(--primary))" }}>
+            <Icon name="Zap" size={14} color="white" />
+          </div>
+          <span className="text-sm font-bold">{navItems.find(n => n.key === tab)?.label}</span>
+          <button onClick={handleLogout} className="text-muted-foreground hover:text-foreground transition-colors">
+            <Icon name="LogOut" size={16} />
+          </button>
+        </header>
+
+        {/* Контент страниц */}
+        <div className="flex-1 max-w-2xl w-full mx-auto pb-20 sm:pb-4">
           {tab === "feed" && <Feed onUserClick={openProfile} currentUser={user} />}
 
           {tab === "discover" && (
@@ -97,7 +144,7 @@ export default function Index() {
           )}
 
           {tab === "messages" && (
-            <div className="h-[calc(100vh-104px)] flex flex-col">
+            <div className="h-[calc(100vh-56px)] sm:h-screen flex flex-col">
               <Messages
                 initialUserId={messageUserId}
                 onUserClick={openProfile}
@@ -110,41 +157,27 @@ export default function Index() {
             <ProfileView
               userId={profileId || "me"}
               onMessage={openMessage}
-              onBack={() => {
-                setTab("feed");
-                setProfileId(null);
-              }}
+              onBack={() => { setTab("feed"); setProfileId(null); }}
               currentUser={user}
             />
           )}
         </div>
       </main>
 
-      {/* Bottom nav */}
-      <nav
-        className="fixed bottom-0 left-0 right-0 z-20 border-t border-border backdrop-blur-sm"
-        style={{ background: "hsla(0, 0%, 5%, 0.9)" }}
-      >
-        <div className="max-w-lg mx-auto flex">
-          {navItems.map(({ key, icon, label }) => {
+      {/* ── Мобильная нижняя навигация ── */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-border"
+        style={{ background: "hsl(var(--card))" }}>
+        <div className="flex">
+          {navItems.map(({ key, icon }) => {
             const isActive = tab === key;
             return (
-              <button
-                key={key}
-                onClick={() => {
-                  if (key === "profile") setProfileId(null);
-                  if (key !== "messages") setMessageUserId(null);
-                  setTab(key);
-                }}
-                className="flex-1 flex flex-col items-center gap-0.5 py-3 transition-all"
-                style={{
-                  color: isActive
-                    ? "hsl(var(--primary))"
-                    : "hsl(var(--muted-foreground))",
-                }}
-              >
-                <Icon name={icon} size={18} />
-                <span className="text-[10px] font-mono-plex">{label}</span>
+              <button key={key} onClick={() => switchTab(key)}
+                className="flex-1 flex flex-col items-center py-3 transition-all"
+                style={{ color: isActive ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
+                <Icon name={icon} size={22} />
+                {isActive && (
+                  <div className="w-1 h-1 rounded-full mt-1" style={{ background: "hsl(var(--primary))" }} />
+                )}
               </button>
             );
           })}

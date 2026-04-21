@@ -45,7 +45,43 @@ def handler(event: dict, context) -> dict:
 
         if method == "GET":
             params = event.get("queryStringParameters") or {}
+            profile_id = params.get("id")
             q = (params.get("q") or "").strip().lower()
+
+            # Профиль конкретного пользователя
+            if profile_id:
+                cur.execute(
+                    f"SELECT id, name, username, bio, avatar, avatar_url, banner_url, followers_count, following_count, posts_count "
+                    f"FROM {schema}.users WHERE id = %s",
+                    (int(profile_id),)
+                )
+                row = cur.fetchone()
+                if not row:
+                    return {"statusCode": 404, "headers": CORS, "body": json.dumps({"error": "not_found"})}
+
+                is_following = False
+                if current_user_id:
+                    cur.execute(
+                        f"SELECT 1 FROM {schema}.follows WHERE follower_id = %s AND following_id = %s",
+                        (current_user_id, int(profile_id))
+                    )
+                    is_following = cur.fetchone() is not None
+
+                return {"statusCode": 200, "headers": CORS, "body": json.dumps({
+                    "user": {
+                        "id": str(row[0]),
+                        "name": row[1],
+                        "username": row[2],
+                        "bio": row[3] or "",
+                        "avatar": row[4] or "",
+                        "avatarUrl": row[5] or "",
+                        "bannerUrl": row[6] or "",
+                        "followers": row[7],
+                        "following": row[8],
+                        "posts": row[9],
+                        "isFollowing": is_following,
+                    }
+                })}
 
             if q:
                 cur.execute(

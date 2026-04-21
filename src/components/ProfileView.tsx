@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Avatar from "./Avatar";
 import Icon from "@/components/ui/icon";
 import EditProfileModal from "./EditProfileModal";
-import { AuthUser, FullProfile, FeedPost, fetchMyProfile, fetchUserPosts, deletePostApi, likePost } from "@/lib/api";
+import { AuthUser, FullProfile, FeedPost, fetchMyProfile, fetchPublicProfile, fetchUserPosts, deletePostApi, likePost } from "@/lib/api";
 
 interface ProfileViewProps {
   userId: string;
@@ -46,20 +46,25 @@ export default function ProfileView({ userId, onMessage, onBack, currentUser, on
         setLoading(false);
       });
     } else {
-      // Чужой профиль — заглушка, пока нет отдельного API
-      setProfile({
-        id: Number(userId),
-        name: "Пользователь",
-        username: userId,
-        bio: "",
-        avatar: "?",
-        avatarUrl: "",
-        bannerUrl: "",
-        followers: 0,
-        following: 0,
-        posts: 0,
+      // Чужой профиль — загружаем из API
+      fetchPublicProfile(userId).then((p) => {
+        if (p) {
+          setProfile({
+            id: Number(p.id),
+            name: p.name,
+            username: p.username,
+            bio: p.bio,
+            avatar: p.avatar,
+            avatarUrl: p.avatarUrl,
+            bannerUrl: p.bannerUrl,
+            followers: p.followers,
+            following: p.following,
+            posts: p.posts,
+          });
+          setIsFollowing(p.isFollowing);
+        }
+        setLoading(false);
       });
-      setLoading(false);
     }
 
     // Посты пользователя

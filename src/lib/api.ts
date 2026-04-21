@@ -90,6 +90,30 @@ export interface DiscoverUser {
   isFollowing: boolean;
 }
 
+export interface PublicProfile {
+  id: string;
+  name: string;
+  username: string;
+  bio: string;
+  avatar: string;
+  avatarUrl: string;
+  bannerUrl: string;
+  followers: number;
+  following: number;
+  posts: number;
+  isFollowing: boolean;
+}
+
+export async function fetchPublicProfile(userId: string): Promise<PublicProfile | null> {
+  const token = getToken();
+  const res = await fetch(`${USERS_URL}?id=${userId}`, {
+    headers: token ? { "X-Auth-Token": token } : {},
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.user || null;
+}
+
 export async function fetchUsers(q?: string): Promise<DiscoverUser[]> {
   const token = getToken();
   const url = q ? `${USERS_URL}?q=${encodeURIComponent(q)}` : USERS_URL;

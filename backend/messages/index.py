@@ -115,28 +115,28 @@ def handler(event: dict, context) -> dict:
                 )
                 rows = cur.fetchall()
 
-                # Проще: получаем диалоги через простой запрос
+                # Получаем диалоги
                 cur.execute(
                     f"""
                     SELECT
-                        other_id,
+                        sub.other_id,
                         u.name, u.username, u.avatar,
-                        last_text, last_from, last_time,
-                        (SELECT COUNT(*) FROM {schema}.messages
-                         WHERE from_user_id = other_id AND to_user_id = %s AND is_read = false) as unread
+                        sub.last_text, sub.last_from, sub.last_time,
+                        (SELECT COUNT(*) FROM {schema}.messages m3
+                         WHERE m3.from_user_id = sub.other_id AND m3.to_user_id = %s AND m3.is_read = false) as unread
                     FROM (
                         SELECT DISTINCT ON (other_id)
                             CASE WHEN from_user_id = %s THEN to_user_id ELSE from_user_id END as other_id,
                             text as last_text,
                             from_user_id as last_from,
                             to_char(created_at, 'HH24:MI') as last_time,
-                            created_at
+                            created_at as msg_created_at
                         FROM {schema}.messages
                         WHERE from_user_id = %s OR to_user_id = %s
                         ORDER BY other_id, created_at DESC
                     ) sub
-                    JOIN {schema}.users u ON u.id = other_id
-                    ORDER BY created_at DESC
+                    JOIN {schema}.users u ON u.id = sub.other_id
+                    ORDER BY sub.msg_created_at DESC
                     """,
                     (current_user_id, current_user_id, current_user_id, current_user_id)
                 )

@@ -143,15 +143,15 @@ export default function ProfileView({ userId, onMessage, onBack, currentUser, on
 
       {/* Аватар + кнопки */}
       <div className="px-4 pb-4 border-b border-border">
-        <div className="flex items-end justify-between -mt-8 mb-3">
-          <div className="w-16 h-16 rounded-full overflow-hidden border-4 flex-shrink-0"
-            style={{ borderColor: "hsl(var(--card))" }}>
+        <div className="flex items-start justify-between mb-3" style={{ marginTop: "-32px" }}>
+          <div className="w-16 h-16 rounded-full overflow-hidden border-4 flex-shrink-0 relative z-10"
+            style={{ borderColor: "hsl(var(--background))" }}>
             {profile.avatarUrl
               ? <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover" />
               : <Avatar initials={profile.avatar || profile.name.slice(0, 2).toUpperCase()} size="lg" accent={!!isMe} />
             }
           </div>
-          <div className="flex gap-2 mt-2">
+          <div className="flex gap-2 mt-10">
             {isMe ? (
               <button onClick={() => setShowEdit(true)}
                 className="px-4 py-1.5 rounded-full text-sm font-medium border border-border hover:bg-secondary transition-all"

@@ -177,6 +177,75 @@ export async function sendMessage(toId: string, text: string): Promise<ChatMessa
 }
 
 const PROFILE_URL = func2url.profile;
+const POSTS_URL = func2url.posts;
+
+export interface FeedPost {
+  id: string;
+  userId: string;
+  content: string;
+  likes: number;
+  comments: number;
+  timestamp: string;
+  authorName: string;
+  authorUsername: string;
+  authorAvatar: string;
+  authorAvatarUrl: string;
+  isLiked: boolean;
+}
+
+export async function fetchFeed(): Promise<FeedPost[]> {
+  const token = getToken();
+  const res = await fetch(POSTS_URL, {
+    headers: token ? { "X-Auth-Token": token } : {},
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.posts || [];
+}
+
+export async function fetchUserPosts(userId: string): Promise<FeedPost[]> {
+  const token = getToken();
+  const res = await fetch(`${POSTS_URL}?userId=${userId}`, {
+    headers: token ? { "X-Auth-Token": token } : {},
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.posts || [];
+}
+
+export async function createPost(content: string): Promise<FeedPost | null> {
+  const token = getToken();
+  const res = await fetch(POSTS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Auth-Token": token },
+    body: JSON.stringify({ action: "create", content }),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.post || null;
+}
+
+export async function likePost(postId: string): Promise<boolean | null> {
+  const token = getToken();
+  const res = await fetch(POSTS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Auth-Token": token },
+    body: JSON.stringify({ action: "like", postId }),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.liked;
+}
+
+export async function deletePostApi(postId: string): Promise<boolean> {
+  const token = getToken();
+  const res = await fetch(POSTS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Auth-Token": token },
+    body: JSON.stringify({ action: "delete", postId }),
+  });
+  return res.ok;
+}
 
 export interface FullProfile {
   id: number;

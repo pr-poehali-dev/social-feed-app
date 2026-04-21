@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
-import { users as mockUsers } from "@/data/mockData";
 import Avatar from "./Avatar";
 import Icon from "@/components/ui/icon";
 import EditProfileModal from "./EditProfileModal";
-import { AuthUser, FullProfile, fetchMyProfile, deletePost } from "@/lib/api";
+import { AuthUser, FullProfile, FeedPost, fetchMyProfile, fetchUserPosts, deletePostApi, likePost } from "@/lib/api";
 
 interface ProfileViewProps {
   userId: string;
@@ -15,22 +14,24 @@ interface ProfileViewProps {
 
 export default function ProfileView({ userId, onMessage, onBack, currentUser, onProfileUpdate }: ProfileViewProps) {
   const isMe = userId === "me" || (currentUser && String(currentUser.id) === userId);
+  const realUserId = isMe ? String(currentUser?.id || "") : userId;
 
-  // Профиль
   const [profile, setProfile] = useState<FullProfile | null>(null);
+  const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPosts, setLoadingPosts] = useState(true);
   const [showEdit, setShowEdit] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
 
-  // Посты (мок пока нет реального API постов)
-  const [posts, setPosts] = useState<{ id: string; content: string; timestamp: string; likes: number; comments: number }[]>([]);
-
+  // Загрузка профиля
   useEffect(() => {
     setLoading(true);
+    setLoadingPosts(true);
+    setPosts([]);
+
     if (isMe && currentUser) {
       fetchMyProfile().then((p) => {
-        if (p) setProfile(p);
-        else setProfile({
+        setProfile(p || {
           id: currentUser.id,
           name: currentUser.name,
           username: currentUser.username,
@@ -45,60 +46,68 @@ export default function ProfileView({ userId, onMessage, onBack, currentUser, on
         setLoading(false);
       });
     } else {
-      // Для чужого профиля — из мок-данных или базовых данных
-      const mockUser = mockUsers.find((u) => u.id === userId);
-      if (mockUser) {
-        setProfile({
-          id: Number(mockUser.id),
-          name: mockUser.name,
-          username: mockUser.username,
-          bio: mockUser.bio,
-          avatar: mockUser.avatar,
-          avatarUrl: "",
-          bannerUrl: "",
-          followers: mockUser.followers,
-          following: mockUser.following,
-          posts: mockUser.posts,
-        });
-        setIsFollowing(mockUser.isFollowing || false);
-      }
+      // Чужой профиль — заглушка, пока нет отдельного API
+      setProfile({
+        id: Number(userId),
+        name: "Пользователь",
+        username: userId,
+        bio: "",
+        avatar: "?",
+        avatarUrl: "",
+        bannerUrl: "",
+        followers: 0,
+        following: 0,
+        posts: 0,
+      });
       setLoading(false);
     }
-  }, [userId, isMe, currentUser]);
+
+    // Посты пользователя
+    fetchUserPosts(realUserId).then((data) => {
+      setPosts(data);
+      setLoadingPosts(false);
+    });
+  }, [userId]);
 
   const handleEditSave = (updated: Partial<FullProfile>) => {
     setProfile((prev) => prev ? { ...prev, ...updated } : prev);
-    if (onProfileUpdate) {
-      onProfileUpdate({
-        name: updated.name,
-        bio: updated.bio,
-        avatar: updated.avatar,
-      });
-    }
+    if (onProfileUpdate) onProfileUpdate({ name: updated.name, bio: updated.bio, avatar: updated.avatar });
   };
 
   const handleDeletePost = async (postId: string) => {
-    const ok = await deletePost(postId);
-    if (ok) setPosts((prev) => prev.filter((p) => p.id !== postId));
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+    await deletePostApi(postId);
+  };
+
+  const handleLike = async (postId: string) => {
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? { ...p, isLiked: !p.isLiked, likes: p.isLiked ? p.likes - 1 : p.likes + 1 }
+          : p
+      )
+    );
+    await likePost(postId);
   };
 
   const handleFollow = () => {
     setIsFollowing((v) => !v);
     setProfile((prev) => prev ? {
       ...prev,
-      followers: isFollowing ? prev.followers - 1 : prev.followers + 1
+      followers: isFollowing ? prev.followers - 1 : prev.followers + 1,
     } : prev);
   };
 
   if (loading) {
     return (
-      <div className="flex flex-col animate-fade-in">
+      <div className="animate-fade-in">
         <div className="flex items-center gap-3 p-4 border-b border-border">
           <button onClick={onBack} className="text-muted-foreground hover:text-foreground transition-colors">
             <Icon name="ArrowLeft" size={18} />
           </button>
         </div>
-        <div className="p-6 flex flex-col gap-3">
+        <div className="h-32 bg-secondary animate-pulse" />
+        <div className="p-4 flex flex-col gap-3">
           <div className="w-16 h-16 rounded-full bg-secondary animate-pulse" />
           <div className="h-4 w-32 bg-secondary rounded animate-pulse" />
           <div className="h-3 w-24 bg-secondary rounded animate-pulse" />
@@ -111,7 +120,7 @@ export default function ProfileView({ userId, onMessage, onBack, currentUser, on
 
   return (
     <div className="animate-fade-in">
-      {/* Шапка навигации */}
+      {/* Шапка */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border sticky top-0 z-10 backdrop-blur-sm"
         style={{ background: "hsla(216,18%,13%,0.9)" }}>
         <button onClick={onBack} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -119,13 +128,12 @@ export default function ProfileView({ userId, onMessage, onBack, currentUser, on
         </button>
         <div>
           <p className="text-sm font-semibold leading-tight">{profile.name}</p>
-          <p className="text-xs text-muted-foreground">@{profile.username}</p>
+          <p className="text-xs text-muted-foreground">{posts.length} постов</p>
         </div>
       </div>
 
       {/* Баннер */}
-      <div className="relative h-32 sm:h-44"
-        style={{ background: profile.bannerUrl ? undefined : "hsl(var(--secondary))" }}>
+      <div className="relative h-32 sm:h-44">
         {profile.bannerUrl
           ? <img src={profile.bannerUrl} alt="banner" className="w-full h-full object-cover" />
           : <div className="w-full h-full"
@@ -136,16 +144,13 @@ export default function ProfileView({ userId, onMessage, onBack, currentUser, on
       {/* Аватар + кнопки */}
       <div className="px-4 pb-4 border-b border-border">
         <div className="flex items-end justify-between -mt-8 mb-3">
-          {/* Аватар */}
           <div className="w-16 h-16 rounded-full overflow-hidden border-4 flex-shrink-0"
             style={{ borderColor: "hsl(var(--card))" }}>
             {profile.avatarUrl
               ? <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover" />
-              : <Avatar initials={profile.avatar} size="lg" accent={!!isMe} />
+              : <Avatar initials={profile.avatar || profile.name.slice(0, 2).toUpperCase()} size="lg" accent={!!isMe} />
             }
           </div>
-
-          {/* Кнопки */}
           <div className="flex gap-2 mt-2">
             {isMe ? (
               <button onClick={() => setShowEdit(true)}
@@ -173,31 +178,36 @@ export default function ProfileView({ userId, onMessage, onBack, currentUser, on
           </div>
         </div>
 
-        {/* Инфо */}
         <h2 className="text-base font-bold mb-0.5">{profile.name}</h2>
         <p className="text-sm text-muted-foreground mb-2">@{profile.username}</p>
         {profile.bio && <p className="text-sm leading-relaxed mb-3">{profile.bio}</p>}
 
-        {/* Статистика */}
         <div className="flex gap-5">
-          <button className="flex items-center gap-1 hover:underline">
+          <div className="flex items-center gap-1">
             <span className="text-sm font-bold">{profile.followers.toLocaleString("ru")}</span>
             <span className="text-xs text-muted-foreground">подписчиков</span>
-          </button>
-          <button className="flex items-center gap-1 hover:underline">
+          </div>
+          <div className="flex items-center gap-1">
             <span className="text-sm font-bold">{profile.following}</span>
             <span className="text-xs text-muted-foreground">подписок</span>
-          </button>
-          <div className="flex items-center gap-1">
-            <span className="text-sm font-bold">{profile.posts}</span>
-            <span className="text-xs text-muted-foreground">постов</span>
           </div>
         </div>
       </div>
 
       {/* Посты */}
       <div>
-        {posts.length === 0 ? (
+        {loadingPosts && (
+          <div className="flex flex-col gap-0">
+            {[1, 2].map((i) => (
+              <div key={i} className="p-4 border-b border-border flex flex-col gap-2">
+                <div className="h-3 w-full bg-secondary rounded animate-pulse" />
+                <div className="h-3 w-3/4 bg-secondary rounded animate-pulse" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!loadingPosts && posts.length === 0 && (
           <div className="p-10 text-center">
             <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
               style={{ background: "hsl(var(--secondary))" }}>
@@ -206,39 +216,38 @@ export default function ProfileView({ userId, onMessage, onBack, currentUser, on
             <p className="text-sm text-muted-foreground">Нет постов</p>
             {isMe && <p className="text-xs text-muted-foreground mt-1">Поделитесь чем-нибудь в ленте</p>}
           </div>
-        ) : (
-          posts.map((post) => (
-            <div key={post.id} className="p-4 border-b border-border group">
-              <div className="flex justify-between items-start gap-2">
-                <p className="text-sm leading-relaxed flex-1">{post.content}</p>
-                {isMe && (
-                  <button onClick={() => handleDeletePost(post.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex-shrink-0">
-                    <Icon name="Trash2" size={14} />
-                  </button>
-                )}
-              </div>
-              <div className="flex gap-4 mt-2">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Icon name="Heart" size={12} />{post.likes}
-                </span>
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Icon name="MessageCircle" size={12} />{post.comments}
-                </span>
-                <span className="text-xs text-muted-foreground ml-auto">{post.timestamp}</span>
-              </div>
-            </div>
-          ))
         )}
+
+        {posts.map((post) => (
+          <div key={post.id} className="p-4 border-b border-border group hover:bg-white/[0.02] transition-colors">
+            <div className="flex justify-between items-start gap-2 mb-2">
+              <p className="text-sm leading-relaxed flex-1 whitespace-pre-wrap">{post.content}</p>
+              {isMe && (
+                <button onClick={() => handleDeletePost(post.id)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex-shrink-0">
+                  <Icon name="Trash2" size={14} />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-1 -ml-1.5">
+              <button onClick={() => handleLike(post.id)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-all"
+                style={{ color: post.isLiked ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
+                <Icon name="Heart" size={13} className={post.isLiked ? "fill-current" : ""} />
+                <span>{post.likes}</span>
+              </button>
+              <button className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs text-muted-foreground">
+                <Icon name="MessageCircle" size={13} />
+                <span>{post.comments}</span>
+              </button>
+              <span className="text-xs text-muted-foreground ml-auto">{post.timestamp}</span>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Модал редактирования */}
       {showEdit && profile && (
-        <EditProfileModal
-          profile={profile}
-          onSave={handleEditSave}
-          onClose={() => setShowEdit(false)}
-        />
+        <EditProfileModal profile={profile} onSave={handleEditSave} onClose={() => setShowEdit(false)} />
       )}
     </div>
   );

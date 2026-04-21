@@ -1,10 +1,13 @@
 """
-Посты: лента, создание, удаление, лайки.
-GET /           — лента (все посты, новые первыми)
-GET /?userId=X  — посты конкретного пользователя
-POST / action=create   — создать пост
-POST / action=delete   — удалить свой пост
-POST / action=like     — поставить/убрать лайк
+Посты и комментарии: лента, создание, удаление, лайки, комментарии.
+GET /                  — лента (все посты)
+GET /?userId=X         — посты пользователя
+GET /?postId=X&comments=1 — комментарии к посту
+POST / action=create         — создать пост
+POST / action=delete         — удалить пост
+POST / action=like           — лайк/анлайк
+POST / action=add_comment    — добавить комментарий
+POST / action=delete_comment — удалить комментарий
 """
 import json
 import os
@@ -62,6 +65,34 @@ def handler(event: dict, context) -> dict:
         if method == "GET":
             params = event.get("queryStringParameters") or {}
             filter_user_id = params.get("userId")
+            post_id_comments = params.get("postId")
+
+            # Комментарии к посту
+            if post_id_comments and params.get("comments"):
+                cur.execute(
+                    f"""SELECT c.id, c.user_id, c.content, c.created_at,
+                        u.name, u.username, u.avatar, u.avatar_url
+                        FROM {schema}.comments c
+                        JOIN {schema}.users u ON u.id = c.user_id
+                        WHERE c.post_id = %s
+                        ORDER BY c.created_at ASC""",
+                    (int(post_id_comments),)
+                )
+                rows = cur.fetchall()
+                comments = []
+                for row in rows:
+                    comments.append({
+                        "id": str(row[0]),
+                        "userId": str(row[1]),
+                        "content": row[2],
+                        "timestamp": format_time(row[3]),
+                        "authorName": row[4],
+                        "authorUsername": row[5],
+                        "authorAvatar": row[6] or "",
+                        "authorAvatarUrl": row[7] or "",
+                        "isOwn": row[1] == current_user_id,
+                    })
+                return {"statusCode": 200, "headers": CORS, "body": json.dumps({"comments": comments})}
 
             if filter_user_id:
                 cur.execute(
@@ -199,6 +230,65 @@ def handler(event: dict, context) -> dict:
                     )
                 conn.commit()
                 return {"statusCode": 200, "headers": CORS, "body": json.dumps({"liked": not already_liked})}
+
+            if action == "add_comment":
+                post_id = body.get("postId")
+                content = (body.get("content") or "").strip()
+                if not post_id or not content:
+                    return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "postId и content обязательны"})}
+                if len(content) > 1000:
+                    return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "Комментарий слишком длинный"})}
+
+                cur.execute(
+                    f"INSERT INTO {schema}.comments (post_id, user_id, content) VALUES (%s, %s, %s) RETURNING id, created_at",
+                    (int(post_id), current_user_id, content)
+                )
+                comment_id, _ = cur.fetchone()
+                cur.execute(
+                    f"UPDATE {schema}.posts SET comments_count = comments_count + 1 WHERE id = %s",
+                    (int(post_id),)
+                )
+                cur.execute(
+                    f"SELECT name, username, avatar, avatar_url FROM {schema}.users WHERE id = %s",
+                    (current_user_id,)
+                )
+                u = cur.fetchone()
+                conn.commit()
+
+                return {"statusCode": 200, "headers": CORS, "body": json.dumps({
+                    "comment": {
+                        "id": str(comment_id),
+                        "userId": str(current_user_id),
+                        "content": content,
+                        "timestamp": "только что",
+                        "authorName": u[0],
+                        "authorUsername": u[1],
+                        "authorAvatar": u[2] or "",
+                        "authorAvatarUrl": u[3] or "",
+                        "isOwn": True,
+                    }
+                })}
+
+            if action == "delete_comment":
+                comment_id = body.get("commentId")
+                if not comment_id:
+                    return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "commentId required"})}
+
+                cur.execute(
+                    f"SELECT post_id FROM {schema}.comments WHERE id = %s AND user_id = %s",
+                    (int(comment_id), current_user_id)
+                )
+                row = cur.fetchone()
+                if not row:
+                    return {"statusCode": 403, "headers": CORS, "body": json.dumps({"error": "Нет прав"})}
+
+                cur.execute(f"DELETE FROM {schema}.comments WHERE id = %s", (int(comment_id),))
+                cur.execute(
+                    f"UPDATE {schema}.posts SET comments_count = GREATEST(comments_count - 1, 0) WHERE id = %s",
+                    (row[0],)
+                )
+                conn.commit()
+                return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}
 
         return {"statusCode": 405, "headers": CORS, "body": json.dumps({"error": "method_not_allowed"})}
 

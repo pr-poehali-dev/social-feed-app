@@ -247,6 +247,50 @@ export async function deletePostApi(postId: string): Promise<boolean> {
   return res.ok;
 }
 
+export interface Comment {
+  id: string;
+  userId: string;
+  content: string;
+  timestamp: string;
+  authorName: string;
+  authorUsername: string;
+  authorAvatar: string;
+  authorAvatarUrl: string;
+  isOwn: boolean;
+}
+
+export async function fetchComments(postId: string): Promise<Comment[]> {
+  const token = getToken();
+  const res = await fetch(`${POSTS_URL}?postId=${postId}&comments=1`, {
+    headers: token ? { "X-Auth-Token": token } : {},
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.comments || [];
+}
+
+export async function addComment(postId: string, content: string): Promise<Comment | null> {
+  const token = getToken();
+  const res = await fetch(POSTS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Auth-Token": token },
+    body: JSON.stringify({ action: "add_comment", postId, content }),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.comment || null;
+}
+
+export async function deleteComment(commentId: string): Promise<boolean> {
+  const token = getToken();
+  const res = await fetch(POSTS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Auth-Token": token },
+    body: JSON.stringify({ action: "delete_comment", commentId }),
+  });
+  return res.ok;
+}
+
 export interface FullProfile {
   id: number;
   name: string;

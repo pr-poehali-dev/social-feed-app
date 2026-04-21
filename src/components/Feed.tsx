@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Avatar from "./Avatar";
 import Icon from "@/components/ui/icon";
+import CommentsPanel from "./CommentsPanel";
 import { AuthUser, FeedPost, fetchFeed, createPost, likePost, deletePostApi } from "@/lib/api";
 
 interface FeedProps {
@@ -161,7 +162,7 @@ export default function Feed({ onUserClick, currentUser }: FeedProps) {
                 <p className="text-sm leading-relaxed mb-3 whitespace-pre-wrap">{post.content}</p>
 
                 {/* Действия */}
-                <div className="flex items-center gap-1 -ml-1.5">
+                <div className="flex items-center gap-1 -ml-1.5 mb-1">
                   <button onClick={() => handleLike(post.id)}
                     className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium transition-all group/like"
                     style={{ color: post.isLiked ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
@@ -169,13 +170,14 @@ export default function Feed({ onUserClick, currentUser }: FeedProps) {
                       className={`transition-transform group-hover/like:scale-110 ${post.isLiked ? "fill-current" : ""}`} />
                     <span>{post.likes}</span>
                   </button>
-                  <button className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all">
-                    <Icon name="MessageCircle" size={15} />
-                    <span>{post.comments}</span>
-                  </button>
-                  <button className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all ml-auto">
-                    <Icon name="Share2" size={15} />
-                  </button>
+                  <CommentsPanel
+                    postId={post.id}
+                    commentsCount={post.comments}
+                    onCountChange={(delta) => setPosts((prev) =>
+                      prev.map((p) => p.id === post.id ? { ...p, comments: p.comments + delta } : p)
+                    )}
+                    onUserClick={onUserClick}
+                  />
                 </div>
               </div>
             </div>

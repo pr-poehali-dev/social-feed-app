@@ -1,18 +1,22 @@
 import { useState } from "react";
-import { posts as initialPosts, users, currentUser } from "@/data/mockData";
+import { posts as initialPosts, users, currentUser as mockCurrentUser } from "@/data/mockData";
 import Avatar from "./Avatar";
 import Icon from "@/components/ui/icon";
+import { AuthUser } from "@/lib/api";
 
 interface FeedProps {
   onUserClick: (userId: string) => void;
+  currentUser?: AuthUser;
 }
 
-export default function Feed({ onUserClick }: FeedProps) {
+export default function Feed({ onUserClick, currentUser }: FeedProps) {
   const [posts, setPosts] = useState(initialPosts);
   const [newPost, setNewPost] = useState("");
 
+  const me = currentUser || mockCurrentUser;
+
   const getUser = (id: string) => {
-    if (id === "me") return currentUser;
+    if (id === "me") return me;
     return users.find((u) => u.id === id) || users[0];
   };
 
@@ -46,7 +50,7 @@ export default function Feed({ onUserClick }: FeedProps) {
       {/* Compose */}
       <div className="border-b border-border p-4 pb-4">
         <div className="flex gap-3">
-          <Avatar initials={currentUser.avatar} accent />
+          <Avatar initials={me.avatar} accent />
           <div className="flex-1 flex flex-col gap-3">
             <textarea
               className="w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-sm leading-relaxed min-h-[56px]"

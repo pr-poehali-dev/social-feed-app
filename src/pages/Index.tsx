@@ -1,16 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Feed from "@/components/Feed";
 import ProfileView from "@/components/ProfileView";
 import Messages from "@/components/Messages";
 import Discover from "@/components/Discover";
+import AuthScreen from "@/components/AuthScreen";
 import Icon from "@/components/ui/icon";
+import { authMe, authLogout, AuthUser } from "@/lib/api";
 
 type Tab = "feed" | "discover" | "messages" | "profile";
 
 export default function Index() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("feed");
   const [profileId, setProfileId] = useState<string | null>(null);
   const [messageUserId, setMessageUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    authMe().then((u) => {
+      setUser(u);
+      setAuthLoading(false);
+    });
+  }, []);
+
+  const handleLogout = async () => {
+    await authLogout();
+    setUser(null);
+    setTab("feed");
+  };
 
   const openProfile = (userId: string) => {
     setProfileId(userId);
@@ -21,6 +38,20 @@ export default function Index() {
     setMessageUserId(userId);
     setTab("messages");
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "hsl(var(--background))" }}>
+        <span className="text-2xl font-semibold font-mono-plex" style={{ color: "hsl(var(--primary))" }}>
+          void
+        </span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthScreen onAuth={setUser} />;
+  }
 
   const navItems: { key: Tab; icon: string; label: string }[] = [
     { key: "feed", icon: "Home", label: "Лента" },
@@ -46,13 +77,20 @@ export default function Index() {
           >
             void
           </span>
+          <button
+            onClick={handleLogout}
+            className="text-muted-foreground hover:text-foreground transition-colors text-xs flex items-center gap-1.5"
+          >
+            <Icon name="LogOut" size={14} />
+            <span className="font-mono-plex">выйти</span>
+          </button>
         </div>
       </header>
 
       {/* Content */}
       <main className="flex-1 max-w-lg mx-auto w-full pt-12 pb-14">
         <div className="min-h-[calc(100vh-104px)]">
-          {tab === "feed" && <Feed onUserClick={openProfile} />}
+          {tab === "feed" && <Feed onUserClick={openProfile} currentUser={user} />}
 
           {tab === "discover" && (
             <Discover onUserClick={openProfile} onMessage={openMessage} />
@@ -75,6 +113,7 @@ export default function Index() {
                 setTab("feed");
                 setProfileId(null);
               }}
+              currentUser={user}
             />
           )}
         </div>

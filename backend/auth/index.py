@@ -1,8 +1,8 @@
 """
 Авторизация: регистрация, вход, выход, получение текущего пользователя.
-POST /register — создать аккаунт
-POST /login — войти
-POST /logout — выйти
+POST / body.action=register — создать аккаунт
+POST / body.action=login — войти
+POST / body.action=logout — выйти
 GET / — получить текущего пользователя по токену
 """
 import json
@@ -15,6 +15,7 @@ CORS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, X-Auth-Token",
+    "Content-Type": "application/json",
 }
 
 def get_conn():
@@ -34,8 +35,7 @@ def handler(event: dict, context) -> dict:
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
     method = event.get("httpMethod", "GET")
-    path = event.get("path", "/")
-    token = event.get("headers", {}).get("X-Auth-Token", "")
+    token = ((event.get("headers") or {}).get("X-Auth-Token") or "").strip()
 
     conn = get_conn()
     cur = conn.cursor()
@@ -63,9 +63,10 @@ def handler(event: dict, context) -> dict:
             return {"statusCode": 200, "headers": CORS, "body": json.dumps({"user": user})}
 
         body = json.loads(event.get("body") or "{}")
+        action = body.get("action", "")
 
-        # POST /register
-        if "/register" in path:
+        # action=register
+        if action == "register":
             name = (body.get("name") or "").strip()
             username = (body.get("username") or "").strip().lower()
             password = body.get("password") or ""
@@ -103,8 +104,8 @@ def handler(event: dict, context) -> dict:
             }
             return {"statusCode": 200, "headers": CORS, "body": json.dumps({"token": token_new, "user": user})}
 
-        # POST /login
-        if "/login" in path:
+        # action=login
+        if action == "login":
             username = (body.get("username") or "").strip().lower()
             password = body.get("password") or ""
 
@@ -135,14 +136,14 @@ def handler(event: dict, context) -> dict:
             }
             return {"statusCode": 200, "headers": CORS, "body": json.dumps({"token": token_new, "user": user})}
 
-        # POST /logout
-        if "/logout" in path:
+        # action=logout
+        if action == "logout":
             if token:
                 cur.execute(f"DELETE FROM {schema}.sessions WHERE token = %s", (token,))
                 conn.commit()
             return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}
 
-        return {"statusCode": 404, "headers": CORS, "body": json.dumps({"error": "not_found"})}
+        return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "unknown_action"})}
 
     finally:
         cur.close()

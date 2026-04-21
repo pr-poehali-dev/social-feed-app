@@ -1,17 +1,20 @@
 import { useState } from "react";
-import { users, currentUser, posts } from "@/data/mockData";
+import { users, currentUser as mockCurrentUser, posts } from "@/data/mockData";
 import Avatar from "./Avatar";
 import Icon from "@/components/ui/icon";
+import { AuthUser } from "@/lib/api";
 
 interface ProfileViewProps {
   userId: string;
   onMessage: (userId: string) => void;
   onBack: () => void;
+  currentUser?: AuthUser;
 }
 
-export default function ProfileView({ userId, onMessage, onBack }: ProfileViewProps) {
+export default function ProfileView({ userId, onMessage, onBack, currentUser }: ProfileViewProps) {
+  const me = currentUser || mockCurrentUser;
   const isMe = userId === "me";
-  const rawUser = isMe ? currentUser : users.find((u) => u.id === userId);
+  const rawUser = isMe ? me : users.find((u) => u.id === userId);
   const [user, setUser] = useState(rawUser ? { ...rawUser } : null);
 
   if (!user) return null;

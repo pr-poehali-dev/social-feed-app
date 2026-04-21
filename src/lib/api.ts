@@ -76,4 +76,45 @@ export async function authLogout(): Promise<void> {
   clearToken();
 }
 
+const USERS_URL = func2url.users;
+
+export interface DiscoverUser {
+  id: string;
+  name: string;
+  username: string;
+  bio: string;
+  avatar: string;
+  followers: number;
+  following: number;
+  isFollowing: boolean;
+}
+
+export async function fetchUsers(q?: string): Promise<DiscoverUser[]> {
+  const token = getToken();
+  const url = q ? `${USERS_URL}?q=${encodeURIComponent(q)}` : USERS_URL;
+  const res = await fetch(url, {
+    headers: token ? { "X-Auth-Token": token } : {},
+  });
+  const data = await res.json();
+  return data.users || [];
+}
+
+export async function followUser(userId: string): Promise<void> {
+  const token = getToken();
+  await fetch(USERS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Auth-Token": token },
+    body: JSON.stringify({ action: "follow", userId }),
+  });
+}
+
+export async function unfollowUser(userId: string): Promise<void> {
+  const token = getToken();
+  await fetch(USERS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Auth-Token": token },
+    body: JSON.stringify({ action: "unfollow", userId }),
+  });
+}
+
 export { getToken };

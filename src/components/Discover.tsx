@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { users } from "@/data/mockData";
+import { useState, useEffect, useCallback } from "react";
 import Avatar from "./Avatar";
 import Icon from "@/components/ui/icon";
+import { fetchUsers, followUser, unfollowUser, DiscoverUser } from "@/lib/api";
 
 interface DiscoverProps {
   onUserClick: (userId: string) => void;
@@ -9,23 +9,39 @@ interface DiscoverProps {
 }
 
 export default function Discover({ onUserClick, onMessage }: DiscoverProps) {
-  const [list, setList] = useState(users);
+  const [list, setList] = useState<DiscoverUser[]>([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const filtered = list.filter(
-    (u) =>
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.username.toLowerCase().includes(search.toLowerCase())
-  );
+  const load = useCallback(async (q?: string) => {
+    setLoading(true);
+    const users = await fetchUsers(q || undefined);
+    setList(users);
+    setLoading(false);
+  }, []);
 
-  const handleFollow = (id: string) => {
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => load(search), 300);
+    return () => clearTimeout(timer);
+  }, [search, load]);
+
+  const handleFollow = async (id: string, isFollowing: boolean) => {
     setList((prev) =>
       prev.map((u) =>
         u.id === id
-          ? { ...u, isFollowing: !u.isFollowing, followers: u.isFollowing ? u.followers - 1 : u.followers + 1 }
+          ? { ...u, isFollowing: !isFollowing, followers: isFollowing ? u.followers - 1 : u.followers + 1 }
           : u
       )
     );
+    if (isFollowing) {
+      await unfollowUser(id);
+    } else {
+      await followUser(id);
+    }
   };
 
   return (
@@ -46,16 +62,31 @@ export default function Discover({ onUserClick, onMessage }: DiscoverProps) {
       {/* Header */}
       <div className="px-4 pt-4 pb-2">
         <p className="text-xs text-muted-foreground uppercase tracking-wider font-mono-plex">
-          {search ? `Результаты: ${filtered.length}` : "Все пользователи"}
+          {loading ? "Загрузка..." : search ? `Результаты: ${list.length}` : `Все пользователи · ${list.length}`}
         </p>
       </div>
 
+      {/* Loading skeleton */}
+      {loading && (
+        <div className="flex flex-col">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-3 p-4 border-b border-border">
+              <div className="w-10 h-10 rounded-full bg-secondary animate-pulse" />
+              <div className="flex-1 flex flex-col gap-2">
+                <div className="h-3 w-32 bg-secondary rounded animate-pulse" />
+                <div className="h-2 w-20 bg-secondary rounded animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Users */}
-      {filtered.map((user, i) => (
+      {!loading && list.map((user, i) => (
         <div
           key={user.id}
           className="flex items-center gap-3 p-4 border-b border-border hover:bg-white/[0.02] transition-colors animate-slide-up"
-          style={{ animationDelay: `${i * 50}ms` }}
+          style={{ animationDelay: `${i * 40}ms` }}
         >
           <button onClick={() => onUserClick(user.id)}>
             <Avatar initials={user.avatar} />
@@ -75,7 +106,7 @@ export default function Discover({ onUserClick, onMessage }: DiscoverProps) {
               <Icon name="MessageCircle" size={13} />
             </button>
             <button
-              onClick={() => handleFollow(user.id)}
+              onClick={() => handleFollow(user.id, user.isFollowing)}
               className="px-3 py-1 rounded-full text-xs font-medium transition-all"
               style={{
                 background: user.isFollowing ? "transparent" : "hsl(var(--primary))",
@@ -89,9 +120,9 @@ export default function Discover({ onUserClick, onMessage }: DiscoverProps) {
         </div>
       ))}
 
-      {filtered.length === 0 && (
+      {!loading && list.length === 0 && (
         <div className="p-8 text-center text-sm text-muted-foreground">
-          Никого не найдено
+          {search ? "Никого не найдено" : "Пока нет других пользователей"}
         </div>
       )}
     </div>

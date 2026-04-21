@@ -77,6 +77,7 @@ export async function authLogout(): Promise<void> {
 }
 
 const USERS_URL = func2url.users;
+const MESSAGES_URL = func2url.messages;
 
 export interface DiscoverUser {
   id: string;
@@ -115,6 +116,64 @@ export async function unfollowUser(userId: string): Promise<void> {
     headers: { "Content-Type": "application/json", "X-Auth-Token": token },
     body: JSON.stringify({ action: "unfollow", userId }),
   });
+}
+
+export interface Conversation {
+  userId: string;
+  name: string;
+  username: string;
+  avatar: string;
+  lastText: string;
+  lastFromMe: boolean;
+  lastTime: string;
+  unread: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  fromId: string;
+  toId: string;
+  text: string;
+  isRead: boolean;
+  timestamp: string;
+}
+
+export interface OtherUser {
+  id: string;
+  name: string;
+  username: string;
+  avatar: string;
+}
+
+export async function fetchConversations(): Promise<Conversation[]> {
+  const token = getToken();
+  const res = await fetch(MESSAGES_URL, {
+    headers: { "X-Auth-Token": token },
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.conversations || [];
+}
+
+export async function fetchMessages(userId: string): Promise<{ messages: ChatMessage[]; otherUser: OtherUser | null }> {
+  const token = getToken();
+  const res = await fetch(`${MESSAGES_URL}?userId=${userId}`, {
+    headers: { "X-Auth-Token": token },
+  });
+  if (!res.ok) return { messages: [], otherUser: null };
+  return res.json();
+}
+
+export async function sendMessage(toId: string, text: string): Promise<ChatMessage | null> {
+  const token = getToken();
+  const res = await fetch(MESSAGES_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Auth-Token": token },
+    body: JSON.stringify({ action: "send", toId, text }),
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.message || null;
 }
 
 export { getToken };

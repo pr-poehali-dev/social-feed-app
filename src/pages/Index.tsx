@@ -101,6 +101,7 @@ export default function Index() {
               <Messages
                 initialUserId={messageUserId}
                 onUserClick={openProfile}
+                currentUserId={String(user.id)}
               />
             </div>
           )}

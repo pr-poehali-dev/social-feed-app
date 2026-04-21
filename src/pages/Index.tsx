@@ -159,6 +159,7 @@ export default function Index() {
               onMessage={openMessage}
               onBack={() => { setTab("feed"); setProfileId(null); }}
               currentUser={user}
+              onProfileUpdate={(updated) => setUser((prev) => prev ? { ...prev, ...updated } : prev)}
             />
           )}
         </div>

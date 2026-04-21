@@ -1,0 +1,4 @@
+
+ALTER TABLE t_p13865266_social_feed_app.users
+  ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT '',
+  ADD COLUMN IF NOT EXISTS banner_url TEXT DEFAULT '';

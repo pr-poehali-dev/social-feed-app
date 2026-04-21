@@ -176,4 +176,77 @@ export async function sendMessage(toId: string, text: string): Promise<ChatMessa
   return data.message || null;
 }
 
+const PROFILE_URL = func2url.profile;
+
+export interface FullProfile {
+  id: number;
+  name: string;
+  username: string;
+  bio: string;
+  avatar: string;
+  avatarUrl: string;
+  bannerUrl: string;
+  followers: number;
+  following: number;
+  posts: number;
+}
+
+export async function fetchMyProfile(): Promise<FullProfile | null> {
+  const token = getToken();
+  const res = await fetch(PROFILE_URL, { headers: { "X-Auth-Token": token } });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.user || null;
+}
+
+export async function updateProfile(name: string, bio: string): Promise<{ ok: boolean; avatar?: string; error?: string }> {
+  const token = getToken();
+  const res = await fetch(PROFILE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Auth-Token": token },
+    body: JSON.stringify({ action: "update", name, bio }),
+  });
+  return res.json();
+}
+
+export async function uploadAvatar(base64: string, contentType: string): Promise<{ ok: boolean; url?: string; error?: string }> {
+  const token = getToken();
+  const res = await fetch(PROFILE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Auth-Token": token },
+    body: JSON.stringify({ action: "upload_avatar", data: base64, contentType }),
+  });
+  return res.json();
+}
+
+export async function uploadBanner(base64: string, contentType: string): Promise<{ ok: boolean; url?: string; error?: string }> {
+  const token = getToken();
+  const res = await fetch(PROFILE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Auth-Token": token },
+    body: JSON.stringify({ action: "upload_banner", data: base64, contentType }),
+  });
+  return res.json();
+}
+
+export async function deletePost(postId: string): Promise<boolean> {
+  const token = getToken();
+  const res = await fetch(PROFILE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Auth-Token": token },
+    body: JSON.stringify({ action: "delete_post", postId }),
+  });
+  return res.ok;
+}
+
+export async function deleteMessage(messageId: string): Promise<boolean> {
+  const token = getToken();
+  const res = await fetch(PROFILE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Auth-Token": token },
+    body: JSON.stringify({ action: "delete_message", messageId }),
+  });
+  return res.ok;
+}
+
 export { getToken };

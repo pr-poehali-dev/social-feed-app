@@ -5,6 +5,7 @@ import {
   fetchConversations,
   fetchMessages,
   sendMessage,
+  deleteMessage,
   Conversation,
   ChatMessage,
   OtherUser,
@@ -142,12 +143,22 @@ export default function Messages({ initialUserId, onUserClick, currentUserId }: 
             </div>
           )}
           {messages.map((msg) => {
-            // Если fromId совпадает с текущим пользователем — это моё сообщение
             const isMine = currentUserId
               ? msg.fromId === currentUserId || msg.id.startsWith("tmp_")
               : msg.fromId !== activeUserId;
             return (
-              <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+              <div key={msg.id} className={`flex items-end gap-1.5 group ${isMine ? "justify-end" : "justify-start"}`}>
+                {/* Кнопка удаления (только свои) */}
+                {isMine && !msg.id.startsWith("tmp_") && (
+                  <button
+                    onClick={async () => {
+                      const ok = await deleteMessage(msg.id);
+                      if (ok) setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+                    }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex-shrink-0 mb-1">
+                    <Icon name="Trash2" size={12} />
+                  </button>
+                )}
                 <div
                   className="max-w-[75%] px-3 py-2 rounded-2xl text-sm leading-relaxed"
                   style={{
